@@ -14,3 +14,5 @@ def parseWall():
             complete.append(line)
         
     return complete
+
+

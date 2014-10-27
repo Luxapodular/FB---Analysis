@@ -1,8 +1,30 @@
 from htmlParse import *
+import string
 #Define all friends and find out when you friended them .
+    
+# I joined Sunday, January 18, 2009
 
-
-
+def defineFriends(wall):
+    global friendDict, dateSinceFriend
+    with open("friends.txt", "r") as inf:
+        friends = inf.readlines()
+    
+    friendDict = {}
+    dateSinceFriend = {}
+    
+    for friend in friends:
+        friendDict[friend.strip("\n")] = 0
+        dateSinceFriend[friend.strip("\n")] = 0
+        
+    ageOfFriendship(dateSinceFriend, friendDict,wall)
+    return rateWallPosts(friendDict, dateSinceFriend, wall)
+    
+    
+#Calculates rough distance between two dates as tuples. 
+def distanceBetweenDates(start, end):
+    return end[0] - start[0] + \
+    end[1] * 30 - start[1] * 30 + \
+    end[2] * 365 - start[2] * 365 
     
 monthToIndex = {
                 "January" : 1,
@@ -96,32 +118,65 @@ def metaLineFilter(wall):
             if temp == '<div class="meta">':
                 metaList.append(line)
                 
-    return metaList    
+    return metaList 
 
-def filterLines(lineList):
-    newList = []
-    
-    for line in lineList:
-        divFree = line.strip('<div class="meta">')
-        a = divFree.split(" EST")
-        b = divFree.split(" EDT")
-        if len(a) >= 2:
-            divFree = a
-        else: 
-            divFree = b
+def gaugeResponses(friendDict, dateSinceFriend, filtered):
+    for item in filtered:
+        time = findTime(item[0])
         
-        if divFree[1][0:22] == "</div>Luca Damasco and":
-            newList.append(divFree)
+        name = findNameExtended(item[1])
+        
+        if not(name == "%s" % myName):
+            try:
+                dist = distanceBetweenDates((myDay, myMonth, myYear), (time[0],time[1],time[2]))
+                coeff = map(dist, 0, today, 0, 4)
+                friendDict[name] = friendDict[name] + (1 * coeff)
+            except:
+                friendDict[name] = 1 * coeff
+                
+def findNameExtended(item):
+    item = item.strip("</div>")
+    lower = string.lowercase
+    check = False
+    name = ""
+    for c in item:
+        if c.isspace():
+            name += c
+            check = True
+        elif check and c.islower() and not(c == "d"):
+            return name.strip()
+        else:
+            check = False
+            name += c
             
-    return newList
+         
 
-def findTimes(dictionary, friendList):
-    global abbrToMonth, monthToIndex, abbrToDay, abbrToDayLen, abbrToMonthLen
-
-      
+def findTimes(dictionary, friendDict, friendList):
     for item in friendList:
+        timeFriended = findTime(item[0])
+        name = findName(item[1].strip("</div>").strip("</p"))
         
-        day = item[0][0:3]
+        timeTillFriend = (timeFriended[0] - myDay) + \
+                    ((timeFriended[1] * 30) - (myMonth * 30)) + \
+                    ((timeFriended[2] * 365) - (myYear * 365))
+              
+        friendedFor = map(timeTillFriend, 0, today, today, 0)
+        
+        dictionary[name] = int(friendedFor)
+        friendDict[name] = 0
+        
+def findName(item):
+    # Ignore "Luca Damasco and"
+    start = 17
+    
+    #Ignore " are now friends."
+    end = len(item) - 17
+    
+    return item[start:end]
+
+def findTime(item):
+            
+        day = item[0:3]
         temp = ""
         for c in day:
             temp += c
@@ -132,7 +187,7 @@ def findTimes(dictionary, friendList):
             
 #         dayI = dayToIndex[abbrToDay[day]]
         
-        month = item[0][dayLen + 1 : dayLen+4]
+        month = item[dayLen + 1 : dayLen+4]
         
         monI = monthToIndex[abbrToMonth[month]]
         
@@ -140,7 +195,7 @@ def findTimes(dictionary, friendList):
         
         index = dayLen + monLen
         
-        dayI = item[0][index + 2: index + 4]
+        dayI = item[index + 2: index + 4]
         
         
         if dayI[1] == ",":
@@ -150,38 +205,76 @@ def findTimes(dictionary, friendList):
         
         index += 2 + 3
         
-        year = item[0][index : index + 5]
+        year = item[index : index + 5]   
         
-        print item[1]
+        return (int(dayI), int(monI), int(year)) 
         
-        
-        
-        
-            
-        
-        
-            
-            
-def defineFriends(wall):
-    global friendDict, dateSinceFriend
-    with open("friends.txt", "r") as inf:
-        friends = inf.readlines()
+def ageOfFriendship(dictionary, friendDict, wall):
+    metaList = metaLineFilter(wall) #Only shows meta data on wall. 
     
-    friendDict = {}
-    dateSinceFriend = {}
+    filtered = filterLines(metaList,True) #Filters to find only friendings
     
-    for friend in friends:
-        friendDict[friend.strip("\n")] = 0
-        dateSinceFriend[friend.strip("\n")] = 0
-        
-    ageOfFriendship(dateSinceFriend,wall)
-    
-        
-def ageOfFriendship(dictionary,wall):
+    findTimes(dictionary, friendDict, filtered) #Finds out how long you've been a friend and adds it to the dictionary. 
+   
+def rateWallPosts(friendDict, dateSinceFriend, wall):
     metaList = metaLineFilter(wall)
-    filtered = filterLines(metaList)
-    findTimes(dictionary, filtered)
+    
+    filtered = filterLines(metaList, False)
+    
+    gaugeResponses(friendDict, dateSinceFriend, filtered)
+    
+    friendListTup = []
+    friendList = friendDict.keys()
+    
+    for name in friendList:
+        friendListTup.append((name, friendDict[name]))
+        
+    finalList = []
+    for friend in friendListTup:
+        if not(friend[1] == 0):
+            finalList.append(friend)
+
+    finalList.sort(key = lambda friend : friend[1])
+    
+    return finalList
+    
+def filterLines(lineList, check):
+    newList = []
+        
+    for line in lineList:
+        divFree = line.strip('<div class="meta">')
+        a = divFree.split(" EST")
+        b = divFree.split(" EDT")
+        if len(a) >= 2:
+            divFree = a
+        else: 
+            divFree = b
+        
+        if check:
+            if divFree[1][0:22] == "</div>%s and" % myName:
+                newList.append(divFree)
+        else:
+            if not(divFree[1][0:22] == "</div>%s and" % myName) :
+                newList.append(divFree)
             
+    return newList
+
+def initDefine():
+   global today, myName, myMonth, myYear, myDay
+   
+   myName = "Luca Damasco"
+   myMonth = 1
+   myDay = 18
+   myYear = 2009
+   
+   today = distanceBetweenDates((myDay, myMonth, myYear), 
+                             (day(), month(), year()))
+
+   
+initDefine()
+            
+            
+    
             
             
     

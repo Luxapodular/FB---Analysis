@@ -2,8 +2,35 @@ from defineFriends import *
 from htmlParse import *
 wall = parseWall()
 
-defineFriends(wall)
+list = defineFriends(wall)
 
+tenLeast = []
+
+nFriends = 10
+
+for i in range(nFriends):
+    tenLeast.append(list[i][0])
+    
+print tenLeast
+
+def setup():
+    size(1000,800)
+    textAlign(CENTER)
+    background(0x3b5998)
+    textSize(50)
+    a = loadFont("LucidaGrande-48.vlw")
+    textFont(a)
+    text("Social Strangers", width / 2, height * .1)
+    for i in range(nFriends):
+        xLoc = ((i % 2) * width * .5 ) + width * .25
+        yLoc = height * (.15 * (i % 5)) + height * .25
+        print xLoc, yLoc
+        textSize(30 + i)
+        text(tenLeast[i], xLoc, yLoc)
+
+
+
+"""
 ##########################################
 #Define Weight of each online interaction#
 ##########################################
@@ -48,6 +75,8 @@ message = 5 #In a private message thread with them.
 ######################
 ## Find Old Friends ##
 ######################
+
+"""
 
 
 
